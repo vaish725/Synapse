@@ -1,4 +1,4 @@
-# Synapse 🧠# Synapse — Chrome Extension (MVP)
+# Synapse — Chrome Extension (MVP)
 
 
 
@@ -10,7 +10,7 @@ Synapse helps students, developers, and remote workers maximize focus and improv
 
 
 
----How to run (recommended)
+How to run
 
 
 

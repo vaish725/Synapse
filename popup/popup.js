@@ -133,6 +133,15 @@ function setupEventListeners() {
   
   // AI Insights
   generateInsightsBtn.addEventListener('click', generateInsights);
+  
+  // Settings and data view buttons
+  document.getElementById('settingsBtn')?.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
+  
+  document.getElementById('viewDataBtn')?.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
 }
 
 // Pomodoro functions

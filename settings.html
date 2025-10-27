@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synapse Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">
+        <span class="icon">🧠</span>
+        Synapse Settings
+      </h1>
+    </header>
+
+    <!-- Privacy Disclaimer -->
+    <section class="section disclaimer-section">
+      <div class="disclaimer">
+        <h2>⚠️ Privacy & Ethics Notice</h2>
+        <p>
+          <strong>Synapse is a productivity tool, NOT a medical diagnostic tool.</strong>
+          All insights provided are behavioral observations for time management improvement only.
+          If you have concerns about focus, attention, or mental health, please consult a qualified healthcare professional.
+        </p>
+        <p>
+          <strong>Your Privacy:</strong> All browsing data and analysis happen entirely on your device.
+          No data is transmitted to external servers. You can delete all data at any time below.
+        </p>
+      </div>
+    </section>
+
+    <!-- Pomodoro Settings -->
+    <section class="section">
+      <h2 class="section-title">⏰ Pomodoro Timer Settings</h2>
+      <div class="setting-row">
+        <label for="workMinutes">Work Session Duration (minutes)</label>
+        <input type="number" id="workMinutes" min="1" max="120" value="25">
+      </div>
+      <div class="setting-row">
+        <label for="breakMinutes">Break Duration (minutes)</label>
+        <input type="number" id="breakMinutes" min="1" max="60" value="5">
+      </div>
+      <div class="setting-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="enableFocusMode">
+          <span>Enable Focus Mode (warn on unproductive sites during work sessions)</span>
+        </label>
+      </div>
+      <button class="btn btn-primary" id="savePomodoroBtn">Save Pomodoro Settings</button>
+    </section>
+
+    <!-- Site Categories Management -->
+    <section class="section">
+      <h2 class="section-title">🏷️ Site Categories</h2>
+      <p class="section-description">
+        Manage how sites are categorized. Click on a category badge to change it, or delete sites you no longer want tracked.
+      </p>
+      
+      <div class="search-box">
+        <input type="text" id="searchSites" placeholder="Search sites..." class="search-input">
+      </div>
+
+      <div class="sites-list" id="sitesList">
+        <p class="empty-state">No sites categorized yet. Start browsing and categorize sites from the popup!</p>
+      </div>
+    </section>
+
+    <!-- Data Management -->
+    <section class="section">
+      <h2 class="section-title">💾 Data Management</h2>
+      
+      <div class="data-stats" id="dataStats">
+        <div class="stat">
+          <span class="stat-label">Total Sites Tracked:</span>
+          <span class="stat-value" id="totalSites">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Days of Data:</span>
+          <span class="stat-value" id="totalDays">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total Time Tracked:</span>
+          <span class="stat-value" id="totalTime">0</span>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-secondary" id="exportDataBtn">📤 Export Data (JSON)</button>
+        <button class="btn btn-secondary" id="importDataBtn">📥 Import Data</button>
+        <button class="btn btn-danger" id="clearAllDataBtn">🗑️ Delete All Data</button>
+      </div>
+      <input type="file" id="importFileInput" accept=".json" style="display: none;">
+    </section>
+
+    <!-- About -->
+    <section class="section">
+      <h2 class="section-title">ℹ️ About Synapse</h2>
+      <p>Version: 1.0.0</p>
+      <p>
+        Synapse is an AI-powered focus and time management extension that helps you maximize productivity
+        with on-device behavioral insights.
+      </p>
+      <p>
+        <a href="https://github.com/vaish725/Synapse" target="_blank" class="link">View on GitHub</a> •
+        <a href="https://github.com/vaish725/Synapse/issues" target="_blank" class="link">Report an Issue</a>
+      </p>
+    </section>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>
