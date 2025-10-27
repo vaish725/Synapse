@@ -158,7 +158,8 @@ Synapse/
 - [x] Pomodoro timer
 - [x] Focus Mode
 - [x] Basic dashboard
-- [ ] Gemini Nano integration (in progress)
+- [x] Gemini Nano integration
+- [x] Privacy & ethics compliance
 
 ### Phase 2: Enhancements
 - [ ] Advanced analytics & charts

@@ -345,7 +345,8 @@ function updateTimerDisplay() {
 // Generate AI insights
 async function generateInsights() {
   generateInsightsBtn.disabled = true;
-  insightsContent.innerHTML = '<p class="insights-placeholder">Analyzing your activity patterns...</p>';
+  generateInsightsBtn.textContent = 'Analyzing...';
+  insightsContent.innerHTML = '<p class="insights-placeholder">🧠 Analyzing your browsing patterns with on-device AI...</p>';
   
   try {
     // Get all time data for analysis
@@ -356,16 +357,35 @@ async function generateInsights() {
     // Prepare data for AI analysis
     const analysisData = prepareAnalysisData(timeData, categories);
     
-    // TODO: Integrate with Gemini Nano API
-    // For now, show a placeholder message
-    const mockInsight = generateMockInsight(analysisData);
+    // Check if AI is available (this will also show in console)
+    const isAIAvailable = await checkGeminiNanoAvailability();
+    console.log('Gemini Nano available:', isAIAvailable);
     
-    insightsContent.innerHTML = `<p class="insights-text">${mockInsight}</p>`;
+    // Generate insights using Gemini Nano (or fallback)
+    const insight = await generateAIInsights(analysisData);
+    
+    // Display with markdown-style formatting
+    const formattedInsight = insight.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    insightsContent.innerHTML = `<div class="insights-text">${formattedInsight}</div>`;
+    
+    // Add disclaimer
+    const disclaimer = document.createElement('p');
+    disclaimer.className = 'insights-disclaimer';
+    disclaimer.style.fontSize = '11px';
+    disclaimer.style.color = 'var(--text-secondary)';
+    disclaimer.style.marginTop = '12px';
+    disclaimer.style.fontStyle = 'italic';
+    disclaimer.textContent = isAIAvailable 
+      ? '✨ Generated with on-device AI (Gemini Nano). This is behavioral analysis for productivity, not medical advice.'
+      : '💡 Generated with rule-based analysis. For AI-powered insights, ensure Chrome has Gemini Nano enabled.';
+    insightsContent.appendChild(disclaimer);
+    
   } catch (error) {
     console.error('Error generating insights:', error);
-    insightsContent.innerHTML = '<p class="insights-placeholder" style="color: var(--danger-color);">Error generating insights. Please try again.</p>';
+    insightsContent.innerHTML = '<p class="insights-placeholder" style="color: var(--danger-color);">⚠️ Error generating insights. Please try again.</p>';
   } finally {
     generateInsightsBtn.disabled = false;
+    generateInsightsBtn.textContent = 'Generate';
   }
 }
 
@@ -376,48 +396,26 @@ function prepareAnalysisData(timeData, categories) {
   const data = {
     work: {},
     unproductive: {},
-    neutral: {}
+    neutral: {},
+    totalWorkTime: 0,
+    totalUnproductiveTime: 0,
+    totalNeutralTime: 0
   };
   
   for (const [domain, seconds] of Object.entries(todayData)) {
     const category = categories[domain] || 'neutral';
     data[category][domain] = seconds;
+    
+    if (category === 'work') {
+      data.totalWorkTime += seconds;
+    } else if (category === 'unproductive') {
+      data.totalUnproductiveTime += seconds;
+    } else {
+      data.totalNeutralTime += seconds;
+    }
   }
   
   return data;
-}
-
-function generateMockInsight(data) {
-  // Find most time-consuming unproductive site
-  let maxUnproductive = { domain: 'none', time: 0 };
-  for (const [domain, seconds] of Object.entries(data.unproductive)) {
-    if (seconds > maxUnproductive.time) {
-      maxUnproductive = { domain, time: seconds };
-    }
-  }
-  
-  // Calculate totals
-  const totalWork = Object.values(data.work).reduce((a, b) => a + b, 0);
-  const totalUnproductive = Object.values(data.unproductive).reduce((a, b) => a + b, 0);
-  
-  if (totalWork === 0 && totalUnproductive === 0) {
-    return "No activity detected today. Start tracking your time to get personalized insights!";
-  }
-  
-  let insight = "📊 Today's Analysis: ";
-  
-  if (totalWork > totalUnproductive) {
-    insight += `Great focus today! You spent ${formatTime(totalWork)} on productive work. `;
-  } else if (totalUnproductive > 0) {
-    insight += `You spent ${formatTime(totalUnproductive)} on unproductive sites. `;
-    if (maxUnproductive.domain !== 'none') {
-      insight += `The biggest distraction was ${maxUnproductive.domain} (${formatTime(maxUnproductive.time)}). `;
-    }
-  }
-  
-  insight += "💡 Tip: Try using Focus Mode during your next work session to minimize distractions.";
-  
-  return insight;
 }
 
 // Utility: Format seconds to human-readable time
