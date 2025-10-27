@@ -1,18 +1,45 @@
 // Gemini Nano AI Integration Module
-// On-device AI analysis for behavioral insights
+// On-device AI analysis for behavioral insights via offscreen document
 
 /**
- * Check if Gemini Nano API is available in the browser
+ * Ensure offscreen document is created
+ * @returns {Promise<void>}
+ */
+async function ensureOffscreenDocument() {
+  // Check if document already exists
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('offscreen.html')]
+  });
+
+  if (existingContexts.length > 0) {
+    return; // Already exists
+  }
+
+  // Create offscreen document
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['DOM_SCRAPING'], // Closest reason for accessing web APIs
+    justification: 'Access Gemini Nano API (window.ai) which is not available in extension contexts'
+  });
+  
+  console.log('Offscreen document created for Gemini Nano access');
+}
+
+/**
+ * Check if Gemini Nano API is available via offscreen document
  * @returns {Promise<boolean>} True if available
  */
 async function checkGeminiNanoAvailability() {
   try {
-    // Check if the Prompt API is available
-    if ('ai' in self && 'languageModel' in self.ai) {
-      const availability = await self.ai.languageModel.capabilities();
-      return availability.available === 'readily' || availability.available === 'after-download';
-    }
-    return false;
+    await ensureOffscreenDocument();
+    
+    const response = await chrome.runtime.sendMessage({
+      type: 'CHECK_GEMINI_AVAILABILITY'
+    });
+    
+    console.log('Gemini Nano availability check:', response);
+    return response?.available || false;
   } catch (error) {
     console.error('Error checking Gemini Nano availability:', error);
     return false;
@@ -20,23 +47,12 @@ async function checkGeminiNanoAvailability() {
 }
 
 /**
- * Initialize Gemini Nano session
+ * Initialize Gemini Nano session (no longer used, handled by offscreen)
  * @returns {Promise<Object|null>} AI session object or null
  */
 async function initializeGeminiNano() {
-  try {
-    if ('ai' in self && 'languageModel' in self.ai) {
-      const session = await self.ai.languageModel.create({
-        temperature: 0.7,
-        topK: 3,
-      });
-      return session;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error initializing Gemini Nano:', error);
-    return null;
-  }
+  // Offscreen document handles initialization
+  return null;
 }
 
 /**
@@ -131,34 +147,27 @@ async function generateAIInsights(analysisData) {
       return generateEnhancedFallbackInsight(analysisData);
     }
     
-    // Initialize session
-    const session = await initializeGeminiNano();
+    console.log('Gemini Nano available, generating AI insights via offscreen document');
     
-    if (!session) {
-      console.log('Could not initialize Gemini Nano session, using fallback');
+    // Ensure offscreen document exists
+    await ensureOffscreenDocument();
+    
+    // Send generation request to offscreen document
+    const response = await chrome.runtime.sendMessage({
+      type: 'GENERATE_AI_INSIGHT',
+      data: analysisData
+    });
+    
+    if (response.success && response.insight) {
+      console.log('AI insight generated successfully');
+      return response.insight;
+    } else if (response.useFallback) {
+      console.log('Offscreen requested fallback:', response.error);
+      return generateEnhancedFallbackInsight(analysisData);
+    } else {
+      console.log('AI generation failed, using fallback');
       return generateEnhancedFallbackInsight(analysisData);
     }
-    
-    // Create prompt
-    const prompt = createAnalysisPrompt(analysisData);
-    
-    // Generate response
-    const response = await session.prompt(prompt);
-    
-    // Sanitize response
-    const sanitized = sanitizeAIResponse(response);
-    
-    if (!sanitized) {
-      // Forbidden content detected, use fallback
-      return generateEnhancedFallbackInsight(analysisData);
-    }
-    
-    // Cleanup session
-    if (session.destroy) {
-      session.destroy();
-    }
-    
-    return sanitized;
     
   } catch (error) {
     console.error('Error generating AI insights:', error);

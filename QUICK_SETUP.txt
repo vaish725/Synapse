@@ -1,0 +1,112 @@
+┌─────────────────────────────────────────────────────────────┐
+│  🧠 GEMINI NANO QUICK SETUP - 15 MINUTES                    │
+└─────────────────────────────────────────────────────────────┘
+
+STEP 1: DOWNLOAD CHROME DEV/CANARY (5 min)
+├─ Go to: https://www.google.com/chrome/dev/
+├─ Download and install Chrome Dev
+└─ Launch Chrome Dev (different from regular Chrome)
+
+STEP 2: ENABLE FLAGS (2 min)
+├─ Go to: chrome://flags
+├─ Enable: "optimization-guide-on-device-model" 
+│  └─ SET TO: "Enabled BypassPerfRequirement" ⚠️
+├─ Enable: "prompt-api-for-gemini-nano" 
+│  └─ SET TO: "Enabled"
+└─ Click "Relaunch" button
+
+STEP 3: DOWNLOAD MODEL (5-10 min)
+├─ Go to: chrome://components
+├─ Find: "Optimization Guide On Device Model"
+├─ Click: "Check for update"
+├─ Wait: ~1.5GB download (watch version number change)
+└─ Verify: Version shows 2024.XX.XX.XXX (not 0.0.0.0)
+
+STEP 4: VERIFY (1 min)
+├─ Open console: Cmd + Option + J
+├─ Paste: await window.ai.languageModel.capabilities()
+└─ Expected: {available: "readily"}
+
+STEP 5: TEST IN EXTENSION (2 min)
+├─ Go to: chrome://extensions/
+├─ Enable "Developer mode"
+├─ Click "Load unpacked" → Select Synapse folder
+├─ Click extension icon → Generate insights
+└─ Should see: "Gemini Nano initialized successfully"
+
+┌─────────────────────────────────────────────────────────────┐
+│  🔍 QUICK DIAGNOSTIC                                        │
+└─────────────────────────────────────────────────────────────┘
+
+In Chrome Dev, open: file:///Users/vaishnavikamdi/Documents/Synapse/gemini-diagnostic.html
+
+All sections should show GREEN status:
+├─ ✅ API Detection: Available
+├─ ✅ Capabilities: Ready
+├─ ✅ Session Creation: Success
+└─ ✅ Prompt Test: Success
+
+┌─────────────────────────────────────────────────────────────┐
+│  ⚠️  COMMON ISSUES                                          │
+└─────────────────────────────────────────────────────────────┘
+
+"window.ai is undefined"
+└─ Fix: Completely quit Chrome (Cmd+Q) and reopen
+
+"available: after-download"  
+└─ Fix: Wait 5-10 min, model still downloading
+
+Flags don't appear
+└─ Fix: Update to Chrome 127+, use Dev/Canary
+
+Model won't download
+└─ Fix: Check internet, try again in 1 hour
+
+┌─────────────────────────────────────────────────────────────┐
+│  📝 MANUAL CONSOLE TEST                                     │
+└─────────────────────────────────────────────────────────────┘
+
+(async () => {
+  const capabilities = await window.ai.languageModel.capabilities();
+  console.log('Status:', capabilities);
+  
+  if (capabilities.available === 'readily') {
+    const session = await window.ai.languageModel.create();
+    const response = await session.prompt("Say hello in 5 words");
+    console.log('AI says:', response);
+    session.destroy();
+  }
+})();
+
+┌─────────────────────────────────────────────────────────────┐
+│  🎯 EXPECTED VS CURRENT STATE                               │
+└─────────────────────────────────────────────────────────────┘
+
+BEFORE SETUP:
+├─ window.ai: ❌ undefined
+├─ Extension: ✅ Works (fallback mode)
+└─ AI Quality: ⭐⭐⭐ (rule-based, good)
+
+AFTER SETUP:
+├─ window.ai: ✅ defined
+├─ Extension: ✅ Works (AI mode)
+└─ AI Quality: ⭐⭐⭐⭐⭐ (LLM-based, excellent)
+
+┌─────────────────────────────────────────────────────────────┐
+│  📚 FULL GUIDE                                              │
+└─────────────────────────────────────────────────────────────┘
+
+Open: GEMINI_SETUP_GUIDE.md (detailed step-by-step with screenshots)
+
+┌─────────────────────────────────────────────────────────────┐
+│  🚀 START HERE                                              │
+└─────────────────────────────────────────────────────────────┘
+
+1. Download Chrome Dev: https://www.google.com/chrome/dev/
+2. Follow STEP 2-5 above
+3. Run diagnostic tool to verify
+4. Test extension
+
+Total time: 15-20 minutes (including download)
+
+Good luck! 🎉

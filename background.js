@@ -12,6 +12,22 @@ let focusModeActive = false;
 let pomodoroRunning = false;
 let pomodoroInterval = null;
 
+// Restore Pomodoro on service worker initialization
+(async function restorePomodoroOnInit() {
+  try {
+    const result = await chrome.storage.local.get(['pomodoroState', 'settings']);
+    if (result.pomodoroState && result.pomodoroState.isRunning) {
+      console.log('Restoring Pomodoro timer on service worker init');
+      pomodoroRunning = true;
+      startPomodoroInBackground(result.pomodoroState, result.settings);
+      chrome.action.setBadgeText({ text: '⏱️' });
+      chrome.action.setBadgeBackgroundColor({ color: '#6366f1' });
+    }
+  } catch (error) {
+    console.error('Error restoring Pomodoro:', error);
+  }
+})();
+
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Synapse extension installed');

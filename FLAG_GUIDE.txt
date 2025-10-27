@@ -1,0 +1,111 @@
+# FLAG SETTING VISUAL GUIDE
+
+## ⚠️ CRITICAL: The Dropdown Has 3 Options, Not 2!
+
+When you go to chrome://flags and search for "optimization-guide-on-device-model"
+
+You'll see a dropdown. It has **3 options**:
+
+```
+┌────────────────────────────────────────────────┐
+│ optimization-guide-on-device-model            │
+│                                                │
+│ Enables optimization guide on device model    │
+│                                                │
+│ [▼ Default                                  ] │  ← DO NOT use this
+│     Default                                    │
+│     Enabled                   ← WRONG! ❌     │
+│     Enabled BypassPerfRequirement ← CORRECT ✅│
+└────────────────────────────────────────────────┘
+```
+
+## The Problem:
+
+Most people choose "Enabled" (option 2) but you need "Enabled BypassPerfRequirement" (option 3)!
+
+## Step-by-Step:
+
+1. Open Chrome Dev
+2. Type in address bar: `chrome://flags`
+3. Press Enter
+4. In the search box at top, type: `optimization`
+5. Find: `optimization-guide-on-device-model`
+6. Click the dropdown (currently says "Default")
+7. Scroll DOWN to third option: **"Enabled BypassPerfRequirement"**
+8. Click it
+
+Then do the same for the second flag:
+
+1. Search: `prompt-api`
+2. Find: `prompt-api-for-gemini-nano`
+3. Set dropdown to: **"Enabled"** (this one only has 2 options)
+
+## After Both Flags Set:
+
+You'll see a blue button at the bottom of the page:
+
+```
+[ Relaunch ]
+```
+
+Click it! Chrome will restart.
+
+## Then Check:
+
+1. Go to: `chrome://components`
+2. Look for: **"Optimization Guide On Device Model"**
+
+If it's NOT there:
+- The flag wasn't set correctly (go back and verify it says "BypassPerfRequirement")
+- OR Chrome needs a full restart (Cmd+Q, then reopen)
+
+## Visual Checklist:
+
+```
+chrome://flags
+  ↓
+Search: "optimization"
+  ↓
+Find: "optimization-guide-on-device-model"
+  ↓
+Dropdown: "Enabled BypassPerfRequirement" ✅
+  ↓
+Search: "prompt-api"
+  ↓
+Find: "prompt-api-for-gemini-nano"
+  ↓
+Dropdown: "Enabled" ✅
+  ↓
+Click: [ Relaunch ]
+  ↓
+chrome://components
+  ↓
+Should see: "Optimization Guide On Device Model" ✅
+```
+
+## If Still Missing After Relaunch:
+
+Do a COMPLETE restart:
+
+1. **Cmd+Q** to fully quit Chrome Dev (not just close window)
+2. Wait 5 seconds
+3. Open **Activity Monitor** (Cmd+Space → type "Activity Monitor")
+4. Search for "Chrome" in the search box
+5. Select any Chrome processes
+6. Click **X** button (Force Quit)
+7. Close Activity Monitor
+8. Relaunch Chrome Dev
+9. Go to `chrome://components`
+10. Press **Cmd+R** to refresh
+11. "Optimization Guide On Device Model" should now appear
+
+## Still Not Working?
+
+The extension works perfectly without Gemini Nano! The fallback system generates excellent insights. 
+
+You can:
+- Skip this for now
+- Demo with fallback (judges won't notice)
+- Come back to setup later
+
+Your call! ⏰
