@@ -10,6 +10,7 @@ let sessionStartTime = null;
 let isIdle = false;
 let focusModeActive = false;
 let pomodoroRunning = false;
+let pomodoroInterval = null;
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -19,7 +20,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.idle.setDetectionInterval(60);
   
   // Initialize storage with default values
-  chrome.storage.local.get(['timeData', 'siteCategories', 'settings'], (result) => {
+  chrome.storage.local.get(['timeData', 'siteCategories', 'settings', 'pomodoroState'], (result) => {
     if (!result.timeData) {
       chrome.storage.local.set({ timeData: {} });
     }
@@ -35,7 +36,26 @@ chrome.runtime.onInstalled.addListener(() => {
         }
       });
     }
+    if (!result.pomodoroState) {
+      chrome.storage.local.set({ 
+        pomodoroState: {
+          isRunning: false,
+          timeRemaining: 25 * 60,
+          isWorkSession: true,
+          lastUpdate: Date.now()
+        }
+      });
+    }
   });
+});
+
+// Restore Pomodoro state on startup
+chrome.runtime.onStartup.addListener(async () => {
+  const result = await chrome.storage.local.get(['pomodoroState', 'settings']);
+  if (result.pomodoroState && result.pomodoroState.isRunning) {
+    // Resume Pomodoro timer
+    startPomodoroInBackground(result.pomodoroState, result.settings);
+  }
 });
 
 // Track active tab changes
@@ -208,10 +228,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (pomodoroRunning) {
       chrome.action.setBadgeText({ text: '⏱️' });
       chrome.action.setBadgeBackgroundColor({ color: '#6366f1' });
+      
+      // Start background timer
+      if (request.timeRemaining) {
+        startPomodoroInBackground({
+          isRunning: true,
+          timeRemaining: request.timeRemaining,
+          isWorkSession: request.isWorkSession !== undefined ? request.isWorkSession : true,
+          lastUpdate: Date.now()
+        }, request.settings);
+      }
     } else {
       chrome.action.setBadgeText({ text: '' });
+      // Stop background timer
+      if (pomodoroInterval) {
+        clearInterval(pomodoroInterval);
+        pomodoroInterval = null;
+      }
     }
     sendResponse({ success: true });
+    return true;
+  }
+  
+  if (request.action === 'getPomodoroState') {
+    chrome.storage.local.get(['pomodoroState'], (result) => {
+      sendResponse(result.pomodoroState || null);
+    });
+    return true;
+  }
+  
+  if (request.action === 'updatePomodoroState') {
+    chrome.storage.local.set({ pomodoroState: request.state }, () => {
+      sendResponse({ success: true });
+    });
     return true;
   }
 });
@@ -224,3 +273,74 @@ setInterval(() => {
     sessionStartTime = Date.now();
   }
 }, 10000);
+
+// Background Pomodoro Timer Management
+function startPomodoroInBackground(state, settings) {
+  if (pomodoroInterval) {
+    clearInterval(pomodoroInterval);
+  }
+  
+  // Calculate actual time remaining accounting for elapsed time
+  const elapsed = Math.floor((Date.now() - state.lastUpdate) / 1000);
+  let timeRemaining = state.timeRemaining - elapsed;
+  
+  if (timeRemaining <= 0) {
+    timeRemaining = 0;
+  }
+  
+  console.log(`Starting background Pomodoro: ${timeRemaining}s remaining`);
+  
+  pomodoroInterval = setInterval(async () => {
+    if (timeRemaining > 0) {
+      timeRemaining--;
+      
+      // Update storage every 5 seconds
+      if (timeRemaining % 5 === 0) {
+        await chrome.storage.local.set({
+          pomodoroState: {
+            isRunning: true,
+            timeRemaining: timeRemaining,
+            isWorkSession: state.isWorkSession,
+            lastUpdate: Date.now()
+          }
+        });
+      }
+    } else {
+      // Session complete
+      clearInterval(pomodoroInterval);
+      pomodoroInterval = null;
+      
+      const message = state.isWorkSession 
+        ? 'Work session complete! Time for a break.' 
+        : 'Break over! Ready for another work session?';
+      
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'Synapse Timer',
+        message: message,
+        priority: 2
+      });
+      
+      // Switch session type
+      const newIsWorkSession = !state.isWorkSession;
+      const workDuration = (settings?.pomodoroWorkMinutes || 25) * 60;
+      const breakDuration = (settings?.pomodoroBreakMinutes || 5) * 60;
+      const newTimeRemaining = newIsWorkSession ? workDuration : breakDuration;
+      
+      // Update storage with completed state
+      await chrome.storage.local.set({
+        pomodoroState: {
+          isRunning: false,
+          timeRemaining: newTimeRemaining,
+          isWorkSession: newIsWorkSession,
+          lastUpdate: Date.now()
+        }
+      });
+      
+      // Clear badge
+      chrome.action.setBadgeText({ text: '' });
+      pomodoroRunning = false;
+    }
+  }, 1000);
+}

@@ -30,6 +30,7 @@ async function init() {
   await loadCurrentSite();
   await loadTodayStats();
   await loadSettings();
+  await loadPomodoroState(); // Load persisted timer state
   setupEventListeners();
 }
 
@@ -91,9 +92,7 @@ async function loadSettings() {
       const settings = result.settings;
       pomodoroState.workDuration = (settings.pomodoroWorkMinutes || 25) * 60;
       pomodoroState.breakDuration = (settings.pomodoroBreakMinutes || 5) * 60;
-      pomodoroState.timeRemaining = pomodoroState.workDuration;
       focusModeCheckbox.checked = settings.enableFocusMode || false;
-      updateTimerDisplay();
       
       // Sync focus mode state with background worker
       await chrome.runtime.sendMessage({
@@ -103,6 +102,44 @@ async function loadSettings() {
     }
   } catch (error) {
     console.error('Error loading settings:', error);
+  }
+}
+
+// Load persisted Pomodoro state
+async function loadPomodoroState() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getPomodoroState' });
+    if (response && response.isRunning) {
+      // Calculate elapsed time since last update
+      const elapsed = Math.floor((Date.now() - response.lastUpdate) / 1000);
+      pomodoroState.timeRemaining = Math.max(0, response.timeRemaining - elapsed);
+      pomodoroState.isWorkSession = response.isWorkSession;
+      pomodoroState.isRunning = true;
+      pomodoroState.isPaused = false;
+      
+      // Update UI
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      updateTimerDisplay();
+      
+      // Start UI timer sync
+      pomodoroState.intervalId = setInterval(() => {
+        if (pomodoroState.timeRemaining > 0) {
+          pomodoroState.timeRemaining--;
+          updateTimerDisplay();
+        } else {
+          // Timer completed, sync with background
+          loadPomodoroState();
+        }
+      }, 1000);
+    } else if (response) {
+      // Timer is not running, but load the saved state
+      pomodoroState.timeRemaining = response.timeRemaining;
+      pomodoroState.isWorkSession = response.isWorkSession;
+      updateTimerDisplay();
+    }
+  } catch (error) {
+    console.error('Error loading Pomodoro state:', error);
   }
 }
 
@@ -147,6 +184,10 @@ function setupEventListeners() {
   generateInsightsBtn.addEventListener('click', generateInsights);
   
   // Settings and data view buttons
+  document.getElementById('openInTabBtn')?.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
+  });
+  
   document.getElementById('settingsBtn')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
@@ -157,7 +198,7 @@ function setupEventListeners() {
 }
 
 // Pomodoro functions
-function startPomodoro() {
+async function startPomodoro() {
   if (pomodoroState.isRunning) return;
   
   pomodoroState.isRunning = true;
@@ -165,10 +206,28 @@ function startPomodoro() {
   startBtn.disabled = true;
   pauseBtn.disabled = false;
   
-  // Notify background worker
-  chrome.runtime.sendMessage({
+  // Get current settings
+  const result = await chrome.storage.local.get(['settings']);
+  const settings = result.settings || {};
+  
+  // Notify background worker and pass state
+  await chrome.runtime.sendMessage({
     action: 'setPomodoroState',
-    running: true
+    running: true,
+    timeRemaining: pomodoroState.timeRemaining,
+    isWorkSession: pomodoroState.isWorkSession,
+    settings: settings
+  });
+  
+  // Save state to storage
+  await chrome.runtime.sendMessage({
+    action: 'updatePomodoroState',
+    state: {
+      isRunning: true,
+      timeRemaining: pomodoroState.timeRemaining,
+      isWorkSession: pomodoroState.isWorkSession,
+      lastUpdate: Date.now()
+    }
   });
   
   pomodoroState.intervalId = setInterval(() => {
@@ -182,7 +241,7 @@ function startPomodoro() {
   }, 1000);
 }
 
-function pausePomodoro() {
+async function pausePomodoro() {
   if (!pomodoroState.isRunning) return;
   
   pomodoroState.isRunning = false;
@@ -191,9 +250,20 @@ function pausePomodoro() {
   pauseBtn.disabled = true;
   
   // Notify background worker
-  chrome.runtime.sendMessage({
+  await chrome.runtime.sendMessage({
     action: 'setPomodoroState',
     running: false
+  });
+  
+  // Save paused state
+  await chrome.runtime.sendMessage({
+    action: 'updatePomodoroState',
+    state: {
+      isRunning: false,
+      timeRemaining: pomodoroState.timeRemaining,
+      isWorkSession: pomodoroState.isWorkSession,
+      lastUpdate: Date.now()
+    }
   });
   
   if (pomodoroState.intervalId) {
@@ -202,11 +272,23 @@ function pausePomodoro() {
   }
 }
 
-function resetPomodoro() {
-  pausePomodoro();
+async function resetPomodoro() {
+  await pausePomodoro();
   pomodoroState.isWorkSession = true;
   pomodoroState.timeRemaining = pomodoroState.workDuration;
   pomodoroState.isPaused = false;
+  
+  // Save reset state
+  await chrome.runtime.sendMessage({
+    action: 'updatePomodoroState',
+    state: {
+      isRunning: false,
+      timeRemaining: pomodoroState.timeRemaining,
+      isWorkSession: true,
+      lastUpdate: Date.now()
+    }
+  });
+  
   updateTimerDisplay();
 }
 
