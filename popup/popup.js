@@ -122,20 +122,39 @@ async function loadPomodoroState() {
       pauseBtn.disabled = false;
       updateTimerDisplay();
       
-      // Start UI timer sync
-      pomodoroState.intervalId = setInterval(() => {
-        if (pomodoroState.timeRemaining > 0) {
-          pomodoroState.timeRemaining--;
-          updateTimerDisplay();
-        } else {
-          // Timer completed, sync with background
-          loadPomodoroState();
-        }
-      }, 1000);
+      // Start UI timer countdown (will be synced by interval)
+      if (!pomodoroState.intervalId) {
+        pomodoroState.intervalId = setInterval(() => {
+          if (pomodoroState.timeRemaining > 0) {
+            pomodoroState.timeRemaining--;
+            updateTimerDisplay();
+          } else {
+            // Timer completed, reload state
+            clearInterval(pomodoroState.intervalId);
+            pomodoroState.intervalId = null;
+            pomodoroState.isRunning = false;
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            setTimeout(() => loadPomodoroState(), 500);
+          }
+        }, 1000);
+      }
     } else if (response) {
       // Timer is not running, but load the saved state
       pomodoroState.timeRemaining = response.timeRemaining;
       pomodoroState.isWorkSession = response.isWorkSession;
+      pomodoroState.isRunning = false;
+      pomodoroState.isPaused = false;
+      
+      // Clear any running interval
+      if (pomodoroState.intervalId) {
+        clearInterval(pomodoroState.intervalId);
+        pomodoroState.intervalId = null;
+      }
+      
+      // Update UI
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
       updateTimerDisplay();
     }
   } catch (error) {
@@ -420,3 +439,38 @@ init();
 
 // Refresh stats every 10 seconds
 setInterval(loadTodayStats, 10000);
+
+// Continuously sync Pomodoro timer with background worker (every second)
+setInterval(async () => {
+  if (pomodoroState.isRunning) {
+    // Sync with background state to ensure consistency
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getPomodoroState' });
+      if (response && response.isRunning) {
+        const elapsed = Math.floor((Date.now() - response.lastUpdate) / 1000);
+        const actualTimeRemaining = Math.max(0, response.timeRemaining - elapsed);
+        
+        // Only update if there's a significant difference (> 2 seconds drift)
+        if (Math.abs(pomodoroState.timeRemaining - actualTimeRemaining) > 2) {
+          pomodoroState.timeRemaining = actualTimeRemaining;
+          pomodoroState.isWorkSession = response.isWorkSession;
+          updateTimerDisplay();
+        }
+      } else if (!response || !response.isRunning) {
+        // Background timer stopped, sync UI
+        if (pomodoroState.isRunning) {
+          await loadPomodoroState();
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing timer:', error);
+    }
+  }
+}, 1000);
+
+// Cleanup on window unload (popup close)
+window.addEventListener('beforeunload', () => {
+  if (pomodoroState.intervalId) {
+    clearInterval(pomodoroState.intervalId);
+  }
+});
