@@ -1,40 +1,34 @@
 // Gemini Nano AI Integration Module
-// On-device AI analysis for behavioral insights via offscreen document
+// On-device AI analysis for behavioral insights via content script
 
 /**
- * Ensure offscreen document is created
- * @returns {Promise<void>}
+ * Get active tab to send messages to content script
+ * @returns {Promise<chrome.tabs.Tab|null>}
  */
-async function ensureOffscreenDocument() {
-  // Check if document already exists
-  const existingContexts = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT'],
-    documentUrls: [chrome.runtime.getURL('offscreen.html')]
-  });
-
-  if (existingContexts.length > 0) {
-    return; // Already exists
+async function getActiveTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab || null;
+  } catch (error) {
+    console.error('Error getting active tab:', error);
+    return null;
   }
-
-  // Create offscreen document
-  await chrome.offscreen.createDocument({
-    url: 'offscreen.html',
-    reasons: ['DOM_SCRAPING'], // Closest reason for accessing web APIs
-    justification: 'Access Gemini Nano API (window.ai) which is not available in extension contexts'
-  });
-  
-  console.log('Offscreen document created for Gemini Nano access');
 }
 
 /**
- * Check if Gemini Nano API is available via offscreen document
+ * Check if Gemini Nano API is available via content script
  * @returns {Promise<boolean>} True if available
  */
 async function checkGeminiNanoAvailability() {
   try {
-    await ensureOffscreenDocument();
+    const tab = await getActiveTab();
     
-    const response = await chrome.runtime.sendMessage({
+    if (!tab || !tab.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
+      console.log('Cannot check Gemini Nano: not on a regular web page');
+      return false;
+    }
+    
+    const response = await chrome.tabs.sendMessage(tab.id, {
       type: 'CHECK_GEMINI_AVAILABILITY'
     });
     
@@ -47,11 +41,11 @@ async function checkGeminiNanoAvailability() {
 }
 
 /**
- * Initialize Gemini Nano session (no longer used, handled by offscreen)
+ * Initialize Gemini Nano session (no longer used, handled by content script)
  * @returns {Promise<Object|null>} AI session object or null
  */
 async function initializeGeminiNano() {
-  // Offscreen document handles initialization
+  // Content script handles initialization
   return null;
 }
 
@@ -147,13 +141,18 @@ async function generateAIInsights(analysisData) {
       return generateEnhancedFallbackInsight(analysisData);
     }
     
-    console.log('Gemini Nano available, generating AI insights via offscreen document');
+    console.log('Gemini Nano available, generating AI insights via content script');
     
-    // Ensure offscreen document exists
-    await ensureOffscreenDocument();
+    // Get active tab
+    const tab = await getActiveTab();
     
-    // Send generation request to offscreen document
-    const response = await chrome.runtime.sendMessage({
+    if (!tab || !tab.id) {
+      console.log('No active tab, using fallback');
+      return generateEnhancedFallbackInsight(analysisData);
+    }
+    
+    // Send generation request to content script
+    const response = await chrome.tabs.sendMessage(tab.id, {
       type: 'GENERATE_AI_INSIGHT',
       data: analysisData
     });
@@ -162,7 +161,7 @@ async function generateAIInsights(analysisData) {
       console.log('AI insight generated successfully');
       return response.insight;
     } else if (response.useFallback) {
-      console.log('Offscreen requested fallback:', response.error);
+      console.log('Content script requested fallback:', response.error);
       return generateEnhancedFallbackInsight(analysisData);
     } else {
       console.log('AI generation failed, using fallback');
