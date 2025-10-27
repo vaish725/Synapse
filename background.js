@@ -8,6 +8,8 @@ let activeTabId = null;
 let activeUrl = null;
 let sessionStartTime = null;
 let isIdle = false;
+let focusModeActive = false;
+let pomodoroRunning = false;
 
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -84,7 +86,7 @@ chrome.idle.onStateChanged.addListener((state) => {
 });
 
 // Handle tab change and save previous session
-function handleTabChange(tab) {
+async function handleTabChange(tab) {
   if (!tab.url || isIdle) return;
   
   // Save previous session before switching
@@ -96,6 +98,38 @@ function handleTabChange(tab) {
   sessionStartTime = Date.now();
   
   console.log('Tracking:', activeUrl);
+  
+  // Check for focus mode violations
+  await checkFocusModeViolation(activeUrl);
+}
+
+// Check if current site violates focus mode
+async function checkFocusModeViolation(domain) {
+  if (!focusModeActive || !pomodoroRunning) return;
+  
+  const result = await chrome.storage.local.get(['siteCategories']);
+  const categories = result.siteCategories || {};
+  const category = categories[domain] || 'neutral';
+  
+  if (category === 'unproductive') {
+    // Send warning notification
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: '⚠️ Focus Mode Alert',
+      message: `You're visiting ${domain} during a work session. Stay focused!`,
+      priority: 2
+    });
+    
+    // Update badge to show warning
+    chrome.action.setBadgeText({ text: '!' });
+    chrome.action.setBadgeBackgroundColor({ color: '#ef4444' });
+    
+    // Clear badge after 5 seconds
+    setTimeout(() => {
+      chrome.action.setBadgeText({ text: '' });
+    }, 5000);
+  }
 }
 
 // Save the current session time to storage
@@ -160,6 +194,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const categories = result.siteCategories || {};
       sendResponse({ timeData, categories });
     });
+    return true;
+  }
+  
+  if (request.action === 'setFocusMode') {
+    focusModeActive = request.enabled;
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (request.action === 'setPomodoroState') {
+    pomodoroRunning = request.running;
+    if (pomodoroRunning) {
+      chrome.action.setBadgeText({ text: '⏱️' });
+      chrome.action.setBadgeBackgroundColor({ color: '#6366f1' });
+    } else {
+      chrome.action.setBadgeText({ text: '' });
+    }
+    sendResponse({ success: true });
     return true;
   }
 });

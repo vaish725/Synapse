@@ -94,6 +94,12 @@ async function loadSettings() {
       pomodoroState.timeRemaining = pomodoroState.workDuration;
       focusModeCheckbox.checked = settings.enableFocusMode || false;
       updateTimerDisplay();
+      
+      // Sync focus mode state with background worker
+      await chrome.runtime.sendMessage({
+        action: 'setFocusMode',
+        enabled: settings.enableFocusMode || false
+      });
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -129,6 +135,12 @@ function setupEventListeners() {
     const settings = result.settings || {};
     settings.enableFocusMode = focusModeCheckbox.checked;
     await chrome.storage.local.set({ settings });
+    
+    // Sync with background worker
+    await chrome.runtime.sendMessage({
+      action: 'setFocusMode',
+      enabled: focusModeCheckbox.checked
+    });
   });
   
   // AI Insights
@@ -153,6 +165,12 @@ function startPomodoro() {
   startBtn.disabled = true;
   pauseBtn.disabled = false;
   
+  // Notify background worker
+  chrome.runtime.sendMessage({
+    action: 'setPomodoroState',
+    running: true
+  });
+  
   pomodoroState.intervalId = setInterval(() => {
     if (pomodoroState.timeRemaining > 0) {
       pomodoroState.timeRemaining--;
@@ -171,6 +189,12 @@ function pausePomodoro() {
   pomodoroState.isPaused = true;
   startBtn.disabled = false;
   pauseBtn.disabled = true;
+  
+  // Notify background worker
+  chrome.runtime.sendMessage({
+    action: 'setPomodoroState',
+    running: false
+  });
   
   if (pomodoroState.intervalId) {
     clearInterval(pomodoroState.intervalId);
@@ -198,7 +222,8 @@ function handleSessionComplete() {
     type: 'basic',
     iconUrl: '../icons/icon128.png',
     title: 'Synapse Timer',
-    message: message
+    message: message,
+    priority: 2
   });
   
   // Switch session type
