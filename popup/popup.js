@@ -369,8 +369,12 @@ async function generateInsights() {
       workSites: Object.keys(analysisData.work).length,
       unproductiveSites: Object.keys(analysisData.unproductive).length,
       totalWorkTime: Math.floor(analysisData.totalWorkTime / 60) + ' minutes',
-      totalUnproductiveTime: Math.floor(analysisData.totalUnproductiveTime / 60) + ' minutes'
+      totalUnproductiveTime: Math.floor(analysisData.totalUnproductiveTime / 60) + ' minutes',
+      historicalDays: analysisData.historicalData ? analysisData.historicalData.length : 0,
+      weeklyTrend: analysisData.weeklyComparison ? analysisData.weeklyComparison.message : 'N/A'
     });
+    console.log('[Step 2] Historical data:', analysisData.historicalData);
+    console.log('[Step 2] All available dates in storage:', Object.keys(timeData));
     
     // Check if AI is available (this will also show in console)
     console.log('[Step 3] Checking AI availability...');
