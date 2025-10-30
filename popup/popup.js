@@ -344,27 +344,47 @@ function updateTimerDisplay() {
 
 // Generate AI insights
 async function generateInsights() {
+  console.log('=== AI INSIGHTS GENERATION STARTED ===');
+  console.log('Button clicked at:', new Date().toLocaleTimeString());
+  
   generateInsightsBtn.disabled = true;
   generateInsightsBtn.textContent = 'Analyzing...';
   insightsContent.innerHTML = '<p class="insights-placeholder">🧠 Analyzing your browsing patterns with on-device AI...</p>';
   
   try {
     // Get all time data for analysis
+    console.log('[Step 1] Fetching time data from storage...');
     const result = await chrome.storage.local.get(['timeData', 'siteCategories']);
     const timeData = result.timeData || {};
     const categories = result.siteCategories || {};
+    console.log('[Step 1] Time data retrieved:', {
+      days: Object.keys(timeData).length,
+      sites: Object.keys(categories).length
+    });
     
     // Prepare data for AI analysis
+    console.log('[Step 2] Preparing analysis data...');
     const analysisData = prepareAnalysisData(timeData, categories);
+    console.log('[Step 2] Analysis data prepared:', {
+      workSites: Object.keys(analysisData.work).length,
+      unproductiveSites: Object.keys(analysisData.unproductive).length,
+      totalWorkTime: Math.floor(analysisData.totalWorkTime / 60) + ' minutes',
+      totalUnproductiveTime: Math.floor(analysisData.totalUnproductiveTime / 60) + ' minutes'
+    });
     
     // Check if AI is available (this will also show in console)
+    console.log('[Step 3] Checking AI availability...');
     const isAIAvailable = await checkGeminiNanoAvailability();
-    console.log('Gemini Nano available:', isAIAvailable);
+    console.log('[Step 3] AI availability result:', isAIAvailable);
     
     // Generate insights using Gemini Nano (or fallback)
+    console.log('[Step 4] Generating AI insights...');
     const insight = await generateAIInsights(analysisData);
+    console.log('[Step 4] Insight generated:', insight ? 'SUCCESS' : 'FAILED');
+    console.log('[Step 4] Insight length:', insight ? insight.length + ' characters' : 'N/A');
     
     // Display with markdown-style formatting
+    console.log('[Step 5] Formatting and displaying insight...');
     const formattedInsight = insight.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     insightsContent.innerHTML = `<div class="insights-text">${formattedInsight}</div>`;
     
@@ -380,12 +400,18 @@ async function generateInsights() {
       : '💡 Generated with rule-based analysis. For AI-powered insights, ensure Chrome has Gemini Nano enabled.';
     insightsContent.appendChild(disclaimer);
     
+    console.log('[Step 6] Insight displayed successfully!');
+    console.log('=== AI INSIGHTS GENERATION COMPLETED ===');
+    
   } catch (error) {
-    console.error('Error generating insights:', error);
+    console.error('❌ ERROR GENERATING INSIGHTS:', error);
+    console.error('Error stack:', error.stack);
+    console.log('=== AI INSIGHTS GENERATION FAILED ===');
     insightsContent.innerHTML = '<p class="insights-placeholder" style="color: var(--danger-color);">⚠️ Error generating insights. Please try again.</p>';
   } finally {
     generateInsightsBtn.disabled = false;
     generateInsightsBtn.textContent = 'Generate';
+    console.log('Button re-enabled');
   }
 }
 
@@ -399,7 +425,11 @@ function prepareAnalysisData(timeData, categories) {
     neutral: {},
     totalWorkTime: 0,
     totalUnproductiveTime: 0,
-    totalNeutralTime: 0
+    totalNeutralTime: 0,
+    // Add historical data for trends
+    historicalData: calculateHistoricalTrends(timeData, categories),
+    bestFocusTimes: analyzeFocusTimes(timeData, categories),
+    weeklyComparison: calculateWeeklyComparison(timeData, categories)
   };
   
   for (const [domain, seconds] of Object.entries(todayData)) {
@@ -416,6 +446,94 @@ function prepareAnalysisData(timeData, categories) {
   }
   
   return data;
+}
+
+function calculateHistoricalTrends(timeData, categories) {
+  const last7Days = [];
+  const today = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayData = timeData[dateStr] || {};
+    
+    let workTime = 0;
+    let unproductiveTime = 0;
+    
+    for (const [domain, seconds] of Object.entries(dayData)) {
+      const category = categories[domain] || 'neutral';
+      if (category === 'work') workTime += seconds;
+      else if (category === 'unproductive') unproductiveTime += seconds;
+    }
+    
+    const totalTime = workTime + unproductiveTime;
+    const productivityRate = totalTime > 0 ? Math.round((workTime / totalTime) * 100) : 0;
+    
+    last7Days.push({
+      date: dateStr,
+      dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      workTime,
+      unproductiveTime,
+      productivityRate
+    });
+  }
+  
+  return last7Days;
+}
+
+function analyzeFocusTimes(timeData, categories) {
+  // Analyze which time periods have highest productivity
+  // This is a simplified version - could be enhanced with actual time-of-day tracking
+  const trends = calculateHistoricalTrends(timeData, categories);
+  
+  // Find best day
+  const bestDay = trends.reduce((best, day) => 
+    day.productivityRate > best.productivityRate ? day : best
+  , trends[0] || { dayName: 'N/A', productivityRate: 0 });
+  
+  // Calculate average productivity
+  const avgProductivity = trends.length > 0 
+    ? Math.round(trends.reduce((sum, day) => sum + day.productivityRate, 0) / trends.length)
+    : 0;
+  
+  return {
+    bestDay: bestDay.dayName,
+    bestDayRate: bestDay.productivityRate,
+    avgProductivity
+  };
+}
+
+function calculateWeeklyComparison(timeData, categories) {
+  const trends = calculateHistoricalTrends(timeData, categories);
+  
+  if (trends.length < 2) {
+    return { trend: 'neutral', change: 0, message: 'Not enough data yet' };
+  }
+  
+  // Compare today vs last 6 days average
+  const today = trends[trends.length - 1];
+  const previousDays = trends.slice(0, -1);
+  const avgPrevious = previousDays.reduce((sum, day) => sum + day.productivityRate, 0) / previousDays.length;
+  
+  const change = today.productivityRate - avgPrevious;
+  const percentChange = Math.round(Math.abs(change));
+  
+  let trend = 'neutral';
+  let message = '';
+  
+  if (change > 10) {
+    trend = 'up';
+    message = `📈 Up ${percentChange}% from your average`;
+  } else if (change < -10) {
+    trend = 'down';
+    message = `📉 Down ${percentChange}% from your average`;
+  } else {
+    trend = 'stable';
+    message = `➡️ Consistent with your average (~${Math.round(avgPrevious)}%)`;
+  }
+  
+  return { trend, change: percentChange, message, avgPrevious: Math.round(avgPrevious) };
 }
 
 // Utility: Format seconds to human-readable time
