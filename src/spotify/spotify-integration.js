@@ -489,7 +489,14 @@ class SpotifyIntegration {
    * Get user's playlists
    */
   async getUserPlaylists(limit = 50) {
-    if (!this.isAuthenticated()) return [];
+    console.log('📋 getUserPlaylists called');
+    
+    if (!this.isAuthenticated()) {
+      console.error('❌ Not authenticated - cannot fetch playlists');
+      return [];
+    }
+    
+    console.log('✅ Authenticated, fetching playlists...');
     
     try {
       const response = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}`, {
@@ -498,13 +505,20 @@ class SpotifyIntegration {
         }
       });
       
-      if (!response.ok) throw new Error('Failed to get playlists');
+      console.log('📡 Spotify API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Spotify API error:', errorData);
+        throw new Error(`Failed to get playlists: ${errorData.error?.message || response.statusText}`);
+      }
       
       const data = await response.json();
-      return data.items;
+      console.log(`✅ Retrieved ${data.items?.length || 0} playlists`);
+      return data.items || [];
     } catch (error) {
-      console.error('Error fetching user playlists:', error);
-      return [];
+      console.error('❌ Error fetching user playlists:', error);
+      throw error; // Re-throw to let UI handle it
     }
   }
 

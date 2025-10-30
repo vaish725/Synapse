@@ -67,10 +67,14 @@ class SpotifyUI {
     
     // My Playlists button
     if (this.myPlaylistsBtn) {
-      this.myPlaylistsBtn.addEventListener('click', () => {
-        console.log('My Playlists button clicked');
+      this.myPlaylistsBtn.addEventListener('click', (e) => {
+        console.log('🎵 My Playlists button clicked!');
+        e.preventDefault();
+        e.stopPropagation();
         this.openMyPlaylistsModal();
       });
+    } else {
+      console.error('❌ My Playlists button not found in DOM!');
     }
 
     // Focus playlist buttons - load genre pages directly
@@ -265,10 +269,19 @@ class SpotifyUI {
    * Open My Playlists modal
    */
   async openMyPlaylistsModal() {
+    console.log('📂 Opening My Playlists modal...');
+    
     const overlay = document.getElementById('playlistPickerOverlay');
     const title = document.getElementById('playlistPickerTitle');
     const loading = document.getElementById('playlistLoading');
     const grid = document.getElementById('playlistGrid');
+    
+    if (!overlay || !title || !loading || !grid) {
+      console.error('❌ Modal elements not found:', { overlay, title, loading, grid });
+      return;
+    }
+    
+    console.log('✅ All modal elements found');
     
     // Set title
     title.textContent = 'My Playlists';
@@ -277,6 +290,8 @@ class SpotifyUI {
     overlay.style.display = 'flex';
     loading.style.display = 'flex';
     grid.innerHTML = '';
+    
+    console.log('✅ Modal displayed, loading playlists...');
     
     // Hide the tabs for My Playlists view
     const tabs = document.querySelectorAll('.playlist-tab');
@@ -370,6 +385,7 @@ class SpotifyUI {
    * Load user's personal playlists
    */
   async loadUserPlaylists() {
+    console.log('📋 Loading user playlists...');
     const loading = document.getElementById('playlistLoading');
     const grid = document.getElementById('playlistGrid');
     
@@ -377,11 +393,14 @@ class SpotifyUI {
     grid.innerHTML = '';
     
     try {
+      console.log('🔄 Fetching playlists from Spotify API...');
       const playlists = await this.spotify.getUserPlaylists(50);
+      console.log(`✅ Received ${playlists.length} playlists`);
       
       loading.style.display = 'none';
       
       if (playlists.length === 0) {
+        console.warn('⚠️ No playlists found for user');
         grid.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No playlists found</p>';
         return;
       }
@@ -396,17 +415,20 @@ class SpotifyUI {
         </div>
       `).join('');
       
+      console.log('✅ Playlist UI rendered');
+      
       // Add click handlers
       grid.querySelectorAll('.playlist-item').forEach(item => {
         item.addEventListener('click', () => {
           const uri = item.dataset.uri;
+          console.log('🎵 Playing playlist:', uri);
           this.playSelectedPlaylist(uri);
         });
       });
     } catch (error) {
-      console.error('Error loading user playlists:', error);
+      console.error('❌ Error loading user playlists:', error);
       loading.style.display = 'none';
-      grid.innerHTML = '<p style="text-align: center; color: var(--danger-color);">Failed to load playlists</p>';
+      grid.innerHTML = `<p style="text-align: center; color: var(--danger-color);">Failed to load playlists: ${error.message}</p>`;
     }
   }
 
