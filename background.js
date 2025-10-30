@@ -338,6 +338,11 @@ function startPomodoroInBackground(state, settings) {
         priority: 2
       });
       
+      // Track completed work session
+      if (state.isWorkSession) {
+        await trackPomodoroCompletion(settings?.pomodoroWorkMinutes || 25);
+      }
+      
       // Switch session type
       const newIsWorkSession = !state.isWorkSession;
       const workDuration = (settings?.pomodoroWorkMinutes || 25) * 60;
@@ -359,4 +364,77 @@ function startPomodoroInBackground(state, settings) {
       pomodoroRunning = false;
     }
   }, 1000);
+}
+
+/**
+ * Track completed Pomodoro session
+ */
+async function trackPomodoroCompletion(durationMinutes) {
+  try {
+    const today = new Date().toDateString();
+    const timestamp = Date.now();
+    
+    // Get existing stats
+    const result = await chrome.storage.local.get(['pomodoroStats']);
+    const stats = result.pomodoroStats || {
+      totalSessions: 0,
+      totalMinutes: 0,
+      sessionsToday: 0,
+      lastSessionDate: null,
+      currentStreak: 0,
+      longestStreak: 0,
+      sessionHistory: [] // Array of {date, timestamp, duration}
+    };
+    
+    // Update totals
+    stats.totalSessions += 1;
+    stats.totalMinutes += durationMinutes;
+    
+    // Check if this is the first session today
+    if (stats.lastSessionDate !== today) {
+      // New day
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      
+      if (stats.lastSessionDate === yesterday) {
+        // Streak continues
+        stats.currentStreak += 1;
+      } else if (stats.lastSessionDate === null) {
+        // First ever session
+        stats.currentStreak = 1;
+      } else {
+        // Streak broken, restart
+        stats.currentStreak = 1;
+      }
+      
+      // Update longest streak
+      if (stats.currentStreak > stats.longestStreak) {
+        stats.longestStreak = stats.currentStreak;
+      }
+      
+      stats.sessionsToday = 1;
+      stats.lastSessionDate = today;
+    } else {
+      // Same day, increment today's count
+      stats.sessionsToday += 1;
+    }
+    
+    // Add to history (keep last 365 days)
+    stats.sessionHistory.push({
+      date: today,
+      timestamp: timestamp,
+      duration: durationMinutes
+    });
+    
+    // Keep only last 365 days of history
+    const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+    stats.sessionHistory = stats.sessionHistory.filter(session => session.timestamp > oneYearAgo);
+    
+    // Save updated stats
+    await chrome.storage.local.set({ pomodoroStats: stats });
+    
+    console.log('✅ Pomodoro session tracked:', stats);
+    
+  } catch (error) {
+    console.error('❌ Error tracking Pomodoro session:', error);
+  }
 }

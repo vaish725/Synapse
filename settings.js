@@ -24,6 +24,7 @@ async function init() {
   await loadSettings();
   await loadSiteCategories();
   await loadDataStats();
+  await loadPomodoroStats();
   setupEventListeners();
 }
 
@@ -228,13 +229,14 @@ async function loadDataStats() {
 // Export data as JSON
 async function exportData() {
   try {
-    const result = await chrome.storage.local.get(['timeData', 'siteCategories', 'settings']);
+    const result = await chrome.storage.local.get(['timeData', 'siteCategories', 'settings', 'pomodoroStats']);
     const data = {
       exportDate: new Date().toISOString(),
       version: '1.0.0',
       timeData: result.timeData || {},
       siteCategories: result.siteCategories || {},
-      settings: result.settings || {}
+      settings: result.settings || {},
+      pomodoroStats: result.pomodoroStats || {}
     };
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -270,16 +272,31 @@ async function importData(event) {
     }
     
     // Merge with existing data
-    const result = await chrome.storage.local.get(['timeData', 'siteCategories', 'settings']);
+    const result = await chrome.storage.local.get(['timeData', 'siteCategories', 'settings', 'pomodoroStats']);
     
     const mergedTimeData = { ...result.timeData, ...data.timeData };
     const mergedCategories = { ...result.siteCategories, ...data.siteCategories };
     const mergedSettings = { ...result.settings, ...data.settings };
     
+    // Merge Pomodoro stats (combine session histories)
+    let mergedPomodoroStats = result.pomodoroStats || {};
+    if (data.pomodoroStats) {
+      mergedPomodoroStats = {
+        totalSessions: (result.pomodoroStats?.totalSessions || 0) + (data.pomodoroStats.totalSessions || 0),
+        totalMinutes: (result.pomodoroStats?.totalMinutes || 0) + (data.pomodoroStats.totalMinutes || 0),
+        sessionsToday: data.pomodoroStats.sessionsToday || 0,
+        lastSessionDate: data.pomodoroStats.lastSessionDate || null,
+        currentStreak: Math.max(result.pomodoroStats?.currentStreak || 0, data.pomodoroStats.currentStreak || 0),
+        longestStreak: Math.max(result.pomodoroStats?.longestStreak || 0, data.pomodoroStats.longestStreak || 0),
+        sessionHistory: [...(result.pomodoroStats?.sessionHistory || []), ...(data.pomodoroStats.sessionHistory || [])]
+      };
+    }
+    
     await chrome.storage.local.set({
       timeData: mergedTimeData,
       siteCategories: mergedCategories,
-      settings: mergedSettings
+      settings: mergedSettings,
+      pomodoroStats: mergedPomodoroStats
     });
     
     alert('Data imported successfully!');
@@ -288,6 +305,7 @@ async function importData(event) {
     await loadSettings();
     await loadSiteCategories();
     await loadDataStats();
+    await loadPomodoroStats();
   } catch (error) {
     console.error('Error importing data:', error);
     alert('Error importing data. Please check the file and try again.');
@@ -317,6 +335,7 @@ async function clearAllData() {
     await loadSettings();
     renderSitesList();
     await loadDataStats();
+    await loadPomodoroStats();
   } catch (error) {
     console.error('Error clearing data:', error);
     alert('Error clearing data. Please try again.');
@@ -353,6 +372,88 @@ function formatTime(seconds) {
 // Utility: Capitalize
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Load Pomodoro Statistics
+async function loadPomodoroStats() {
+  try {
+    const result = await chrome.storage.local.get(['pomodoroStats']);
+    const stats = result.pomodoroStats || {
+      totalSessions: 0,
+      totalMinutes: 0,
+      sessionsToday: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      sessionHistory: []
+    };
+    
+    // Update main stat cards
+    document.getElementById('totalSessions').textContent = stats.totalSessions;
+    document.getElementById('currentStreak').textContent = stats.currentStreak;
+    document.getElementById('sessionsToday').textContent = stats.sessionsToday;
+    
+    // Calculate total hours
+    const hours = Math.floor(stats.totalMinutes / 60);
+    const minutes = stats.totalMinutes % 60;
+    document.getElementById('totalHours').textContent = 
+      hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    
+    // Update additional stats
+    document.getElementById('longestStreak').textContent = `${stats.longestStreak} days`;
+    
+    // Calculate this week's sessions
+    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const sessionsThisWeek = stats.sessionHistory.filter(s => s.timestamp > oneWeekAgo).length;
+    document.getElementById('sessionsThisWeek').textContent = `${sessionsThisWeek} sessions`;
+    
+    // Calculate this month's sessions
+    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const sessionsThisMonth = stats.sessionHistory.filter(s => s.timestamp > oneMonthAgo).length;
+    document.getElementById('sessionsThisMonth').textContent = `${sessionsThisMonth} sessions`;
+    
+    // Calculate average sessions per day
+    if (stats.sessionHistory.length > 0) {
+      const firstSession = stats.sessionHistory[0].timestamp;
+      const daysSinceFirst = Math.max(1, Math.floor((Date.now() - firstSession) / (24 * 60 * 60 * 1000)));
+      const avgSessions = (stats.totalSessions / daysSinceFirst).toFixed(1);
+      document.getElementById('avgSessions').textContent = avgSessions;
+    } else {
+      document.getElementById('avgSessions').textContent = '0';
+    }
+    
+    // Update achievements
+    updateAchievements(stats);
+    
+  } catch (error) {
+    console.error('Error loading Pomodoro stats:', error);
+  }
+}
+
+// Update achievement badges
+function updateAchievements(stats) {
+  const achievements = [
+    { id: 0, unlocked: stats.totalSessions >= 1 },      // First Step
+    { id: 1, unlocked: stats.totalSessions >= 10 },     // Getting Started
+    { id: 2, unlocked: stats.currentStreak >= 7 },      // Consistent
+    { id: 3, unlocked: stats.totalSessions >= 50 },     // Dedicated
+    { id: 4, unlocked: stats.currentStreak >= 30 },     // Unstoppable
+    { id: 5, unlocked: stats.totalSessions >= 100 },    // Master
+    { id: 6, unlocked: stats.totalSessions >= 500 },    // Legend
+    { id: 7, unlocked: stats.totalSessions >= 1000 }    // Immortal
+  ];
+  
+  const achievementElements = document.querySelectorAll('.achievement');
+  achievements.forEach((achievement, index) => {
+    if (achievementElements[index]) {
+      if (achievement.unlocked) {
+        achievementElements[index].classList.remove('locked');
+        achievementElements[index].classList.add('unlocked');
+      } else {
+        achievementElements[index].classList.remove('unlocked');
+        achievementElements[index].classList.add('locked');
+      }
+    }
+  });
 }
 
 // Initialize on load
