@@ -116,7 +116,6 @@ body {
   align-items: center;
   margin-bottom: 28px;
   padding-bottom: 20px;
-  border-bottom: 2px solid var(--border-color);
   flex-wrap: wrap;
   gap: 12px;
   background: linear-gradient(to right, var(--primary-color), var(--primary-light));
@@ -124,6 +123,18 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: slideIn 0.5s ease-out;
+  position: relative;
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-color) 20%, var(--border-color) 80%, transparent);
+  opacity: 0.5;
 }
 
 /* Responsive header */
@@ -1068,7 +1079,6 @@ body {
   align-items: center;
   gap: 12px;
   padding: 24px 20px;
-  border-top: 2px solid rgba(99, 102, 241, 0.1);
   margin-top: 24px;
   background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.03) 100%);
   flex-wrap: wrap;
@@ -1135,7 +1145,18 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.playlist-picker-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-color) 10%, var(--border-color) 90%, transparent);
+  opacity: 0.5;
 }
 
 .playlist-picker-header h3 {
@@ -1163,7 +1184,18 @@ body {
   display: flex;
   gap: 8px;
   padding: 16px 16px 0 16px;
-  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.playlist-picker-tabs::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-color) 10%, var(--border-color) 90%, transparent);
+  opacity: 0.4;
 }
 
 .playlist-tab {
