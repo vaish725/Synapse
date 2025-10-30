@@ -205,10 +205,11 @@ async function rewriteInTone(text, tone = 'casual') {
 }
 
 /**
- * Enhanced fallback insight generator (no AI APIs needed)
+ * Enhanced fallback insight generator with detailed metrics and trend analysis
  */
 function generateEnhancedFallbackInsight(analysisData) {
-  const { work, unproductive, neutral, totalWorkTime, totalUnproductiveTime } = analysisData;
+  const { work, unproductive, neutral, totalWorkTime, totalUnproductiveTime, totalNeutralTime,
+          historicalData, bestFocusTimes, weeklyComparison } = analysisData;
   
   const formatTime = (seconds) => {
     if (seconds < 60) return `${seconds}s`;
@@ -218,43 +219,171 @@ function generateEnhancedFallbackInsight(analysisData) {
     return `${mins}m`;
   };
 
-  const totalTime = totalWorkTime + totalUnproductiveTime;
+  const totalTime = totalWorkTime + totalUnproductiveTime + (totalNeutralTime || 0);
   const productivityRate = totalTime > 0 ? Math.round((totalWorkTime / totalTime) * 100) : 0;
+  const distractionRate = totalTime > 0 ? Math.round((totalUnproductiveTime / totalTime) * 100) : 0;
 
-  let insight = '📊 **Today\'s Focus Analysis**\n\n';
+  let insight = '';
 
-  // Main observation
+  // Handle no activity case
   if (totalTime === 0) {
-    insight += 'No activity tracked yet. Start browsing and categorize sites to get personalized insights!';
+    insight += '🔍 **No activity tracked yet**\n\n';
+    insight += 'Start browsing and categorize sites to get personalized insights!\n\n';
+    insight += '💡 **Tip:** Visit Settings to categorize your most-used websites as Work, Neutral, or Unproductive.';
     return insight;
   }
 
-  if (productivityRate >= 70) {
-    insight += `🎯 **Excellent focus today!** You maintained ${productivityRate}% productivity with ${formatTime(totalWorkTime)} of focused work.\n\n`;
-  } else if (productivityRate >= 50) {
-    insight += `✨ **Good balance today.** You spent ${formatTime(totalWorkTime)} on productive work (${productivityRate}% of total time).\n\n`;
-  } else if (productivityRate >= 30) {
-    insight += `💡 **Mixed session.** ${formatTime(totalWorkTime)} of work, but ${formatTime(totalUnproductiveTime)} on distractions.\n\n`;
-  } else {
-    insight += `⚠️ **Lots of distractions today.** Only ${formatTime(totalWorkTime)} focused work out of ${formatTime(totalTime)} total.\n\n`;
-  }
+  // Calculate entries once
+  const unproductiveEntries = Object.entries(unproductive || {}).sort((a, b) => b[1] - a[1]);
+  const workEntries = Object.entries(work || {}).sort((a, b) => b[1] - a[1]);
 
-  // Add specific distraction note if significant
-  if (totalUnproductiveTime > 600) {
-    const topDistraction = Object.entries(unproductive)
-      .sort((a, b) => b[1] - a[1])[0];
-    if (topDistraction) {
-      insight += `⚠️ **Main distraction:** ${topDistraction[0]} (${formatTime(topDistraction[1])})\n\n`;
+  // === QUICK SUMMARY (Key Metrics at a Glance) ===
+  insight += '━━━━━━━━━━━━━━━━━━━━━━\n';
+  insight += '**⚡ QUICK SUMMARY**\n';
+  insight += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  
+  let scoreEmoji = productivityRate >= 70 ? '🎯' : productivityRate >= 50 ? '✨' : productivityRate >= 30 ? '💡' : '⚠️';
+  let scoreLabel = productivityRate >= 70 ? 'Excellent' : productivityRate >= 50 ? 'Good' : productivityRate >= 30 ? 'Fair' : 'Needs Focus';
+  
+  insight += `${scoreEmoji} **Productivity: ${productivityRate}%** (${scoreLabel})\n`;
+  
+  // Top distraction (if any)
+  if (unproductiveEntries.length > 0) {
+    const [topSite, topTime] = unproductiveEntries[0];
+    insight += `🔴 **Top Distraction:** ${topSite} (${formatTime(topTime)})\n`;
+  } else {
+    insight += `✅ **Top Distraction:** None - Great focus!\n`;
+  }
+  
+  // One actionable tip based on current state
+  if (productivityRate < 50 && totalUnproductiveTime > 1800) {
+    insight += `💡 **Quick Tip:** Enable Focus Mode to block distracting sites\n`;
+  } else if (totalWorkTime > 5400) {
+    insight += `💡 **Quick Tip:** Take a break! You've earned it after 90+ min\n`;
+  } else if (productivityRate >= 70) {
+    insight += `💡 **Quick Tip:** Keep the momentum with a Pomodoro session\n`;
+  } else {
+    insight += `💡 **Quick Tip:** Try a 25-minute focused work session\n`;
+  }
+  
+  insight += '\n';
+  
+  // === FULL ANALYSIS BELOW ===
+  insight += '━━━━━━━━━━━━━━━━━━━━━━\n';
+  insight += '**📊 DETAILED ANALYSIS**\n';
+  insight += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  
+  // === TIME BREAKDOWN ===
+  insight += '**⏱️ Time Distribution**\n';
+  insight += `Work: ${formatTime(totalWorkTime)} | Distractions: ${formatTime(totalUnproductiveTime)} | Neutral: ${formatTime(totalNeutralTime || 0)}\n\n`;
+
+  // === DETAILED BREAKDOWN ===
+  insight += '**📈 Site Breakdown**\n';
+  
+  // Work sites breakdown
+  if (workEntries.length > 0) {
+    insight += `✅ **Work Sites (${workEntries.length}):** `;
+    const topWork = workEntries.slice(0, 3).map(([site, sec]) => `${site} (${formatTime(sec)})`).join(', ');
+    insight += topWork;
+    if (workEntries.length > 3) insight += `, +${workEntries.length - 3} more`;
+    insight += '\n';
+  } else {
+    insight += '✅ **Work Sites:** None tracked yet\n';
+  }
+  
+  // Unproductive sites breakdown
+  if (unproductiveEntries.length > 0) {
+    insight += `🔴 **Distractions (${unproductiveEntries.length}):** `;
+    const topDistract = unproductiveEntries.slice(0, 3).map(([site, sec]) => `${site} (${formatTime(sec)})`).join(', ');
+    insight += topDistract;
+    if (unproductiveEntries.length > 3) insight += `, +${unproductiveEntries.length - 3} more`;
+    insight += '\n';
+  }
+  
+  insight += '\n';
+
+  // === KEY OBSERVATIONS ===
+  insight += '**🔍 Key Observations**\n';
+  
+  if (productivityRate >= 70) {
+    insight += '• 🏆 **Excellent focus!** You\'re in the top tier of productivity.\n';
+    if (totalWorkTime > 7200) {
+      insight += '• ⏰ **Long session detected.** Remember to take regular breaks!\n';
+    }
+  } else if (productivityRate >= 50) {
+    insight += '• ✨ **Good balance** between work and breaks.\n';
+    if (distractionRate > 30) {
+      insight += `• ⚠️ **Distraction rate at ${distractionRate}%** - could be improved.\n`;
+    }
+  } else if (productivityRate >= 30) {
+    insight += '• 💭 **Mixed session** - significant time on distractions.\n';
+    if (unproductiveEntries.length > 0) {
+      const [topSite, topTime] = unproductiveEntries[0];
+      insight += `• 🔴 **Biggest time sink:** ${topSite} (${formatTime(topTime)})\n`;
+    }
+  } else {
+    insight += '• 🚨 **High distraction alert!** Focus is being heavily interrupted.\n';
+    if (unproductiveEntries.length > 0) {
+      const [topSite, topTime] = unproductiveEntries[0];
+      insight += `• 🔴 **Major distraction:** ${topSite} consumed ${formatTime(topTime)}\n`;
     }
   }
+  
+  // Session count
+  const sessionCount = workEntries.length + unproductiveEntries.length + Object.keys(neutral || {}).length;
+  insight += `• 🌐 **${sessionCount} different sites** visited today\n`;
+  
+  insight += '\n';
 
-  // Add actionable tip
+  // === TREND ANALYSIS (if available) ===
+  if (historicalData && historicalData.length > 1) {
+    insight += '**📊 Weekly Trends**\n';
+    
+    // Weekly comparison
+    if (weeklyComparison && weeklyComparison.message) {
+      insight += `• ${weeklyComparison.message}\n`;
+    }
+    
+    // Best day performance
+    if (bestFocusTimes && bestFocusTimes.bestDay !== 'N/A') {
+      insight += `• 🌟 **Best day this week:** ${bestFocusTimes.bestDay} (${bestFocusTimes.bestDayRate}% productive)\n`;
+      insight += `• 📈 **Weekly average:** ${bestFocusTimes.avgProductivity}% productivity\n`;
+    }
+    
+    // Streak detection
+    let currentStreak = 0;
+    for (let i = historicalData.length - 1; i >= 0; i--) {
+      if (historicalData[i].productivityRate >= 50) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+    
+    if (currentStreak >= 3) {
+      insight += `• 🔥 **${currentStreak}-day productivity streak!** Keep it going!\n`;
+    } else if (currentStreak === 0 && productivityRate >= 50) {
+      insight += `• 🎯 **New streak started!** Let's build momentum!\n`;
+    }
+    
+    insight += '\n';
+  }
+
+  // === ACTIONABLE RECOMMENDATIONS ===
+  insight += '**💡 Actionable Tips**\n';
+  
   if (productivityRate < 50 && totalUnproductiveTime > 1800) {
-    insight += '💪 **Tip:** Try enabling Focus Mode to reduce interruptions.';
-  } else if (totalWorkTime > 3600 * 2) {
-    insight += '🎯 **Great work!** Remember to take breaks.';
+    insight += '• �️ **Enable Focus Mode** to block distracting sites\n';
+    insight += '• ⏱️ **Start a Pomodoro session** (25min work / 5min break)\n';
+  } else if (totalWorkTime > 5400) {
+    insight += '• 🧘 **Take a break!** You\'ve been focused for over 90 minutes\n';
+    insight += '• 💧 **Hydrate and stretch** to maintain peak performance\n';
   } else if (productivityRate >= 70) {
-    insight += '🚀 **Keep up the momentum!**';
+    insight += '• 🚀 **Keep the momentum!** You\'re in a great flow state\n';
+    insight += '• 📊 **Check your stats** to see your productivity trends\n';
+  } else {
+    insight += '• 🎯 **Set a focus goal** - aim for 30min of uninterrupted work\n';
+    insight += '• 📱 **Categorize sites** in Settings to improve tracking accuracy\n';
   }
 
   return insight;
