@@ -93,7 +93,7 @@ body {
 .container {
   /* Full width - no max-width constraint */
   width: 100%;
-  padding: 20px;
+  padding: 16px;
   box-sizing: border-box;
   animation: fadeIn 0.4s ease-out;
 }
@@ -907,6 +907,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  width: 100%;
 }
 
 /* Responsive stats grid */
@@ -918,13 +919,15 @@ body {
 
 .stat-card {
   background: var(--bg-card);
-  padding: 16px;
+  padding: 12px 8px;
   border-radius: 12px;
   text-align: center;
   border-left: 4px solid var(--border-color);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow);
   animation: fadeIn 0.5s ease-out backwards;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .stat-card:nth-child(1) {
@@ -945,6 +948,12 @@ body {
 }
 
 /* Responsive stat cards */
+@media (min-width: 400px) {
+  .stat-card {
+    padding: 14px 10px;
+  }
+}
+
 @media (min-width: 768px) {
   .stat-card {
     padding: 20px;
@@ -964,24 +973,30 @@ body {
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   margin-bottom: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
 @media (min-width: 768px) {
   .stat-label {
     font-size: 12px;
+    white-space: normal;
   }
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.5px;
+  display: block;
 }
 
 @media (min-width: 768px) {

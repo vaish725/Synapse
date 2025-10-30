@@ -80,6 +80,11 @@ body {
   font-size: 14px;
 }
 
+.section p {
+  text-align: justify;
+  line-height: 1.6;
+}
+
 /* Disclaimer */
 .disclaimer-section {
   border-left: 4px solid var(--warning-color);
@@ -95,6 +100,7 @@ body {
 .disclaimer p {
   margin-bottom: 12px;
   line-height: 1.6;
+  text-align: justify;
 }
 
 .disclaimer p:last-child {
