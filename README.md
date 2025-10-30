@@ -79,16 +79,29 @@ Will be available on the Chrome Web Store after initial release.
 
 ```
 Synapse/
-├── manifest.json           # Chrome extension manifest (V3)
-├── background.js          # Service worker (time tracking, idle detection)
-├── popup/
-│   ├── popup.html         # Extension popup UI
-│   ├── popup.css          # Popup styles
-│   └── popup.js           # Popup logic (Pomodoro, stats, AI)
-├── icons/                 # Extension icons (16, 32, 48, 128)
-├── prd.md                 # Product Requirements Document
-└── README.md              # This file
+├── manifest.json              # Chrome extension manifest (V3)
+├── background.js              # Service worker (time tracking, idle detection)
+├── settings.html/css/js       # Settings page
+├── popup/                     # Extension popup UI
+│   ├── popup.html
+│   ├── popup.css
+│   └── popup.js
+├── icons/                     # Extension icons (16, 32, 48, 128)
+├── src/                       # Source code (organized by feature)
+│   ├── ai/                   # AI features (5 files)
+│   ├── spotify/              # Spotify integration (2 files)
+│   └── utils/                # Utility scripts (2 files)
+├── docs/                      # Documentation
+│   ├── DEVELOPMENT_GUIDE.md  # Folder structure best practices
+│   ├── FOLDER_STRUCTURE.md   # Structure reference
+│   ├── QUICK_REFERENCE.md    # Quick reference card
+│   ├── AI_INTEGRATION.md     # AI setup guide
+│   ├── SPOTIFY_SETUP.md      # Spotify OAuth guide
+│   └── ...
+└── README.md                  # This file
 ```
+
+📚 **See `docs/FOLDER_STRUCTURE.md` for detailed structure documentation**
 
 ---
 

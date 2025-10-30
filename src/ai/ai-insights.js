@@ -1,52 +1,50 @@
-// Gemini Nano AI Integration Module
-// On-device AI analysis for behavioral insights via content script
+// Multi-API Chrome Built-in AI Integration Module
+// Uses Summarizer, Writer, and Rewriter APIs via content script
+
+console.log('[Synapse AI] Multi-API integration module loaded');
+
+let apiAvailability = null;
 
 /**
  * Get active tab to send messages to content script
- * @returns {Promise<chrome.tabs.Tab|null>}
  */
 async function getActiveTab() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     return tab || null;
   } catch (error) {
-    console.error('Error getting active tab:', error);
+    console.error('[Synapse AI] Error getting active tab:', error);
     return null;
   }
 }
 
 /**
- * Check if Gemini Nano API is available via content script
- * @returns {Promise<boolean>} True if available
+ * Check which Chrome Built-in AI APIs are available
  */
-async function checkGeminiNanoAvailability() {
+async function checkAPIsAvailability() {
   try {
     const tab = await getActiveTab();
     
     if (!tab || !tab.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-      console.log('Cannot check Gemini Nano: not on a regular web page');
-      return false;
+      console.log('[Synapse AI] Cannot check APIs: not on a regular web page');
+      return { summarizer: false, writer: false, rewriter: false, prompt: false };
     }
     
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      type: 'CHECK_GEMINI_AVAILABILITY'
-    });
+    const result = await chrome.tabs.sendMessage(tab.id, { type: 'CHECK_API_AVAILABILITY' });
     
-    console.log('Gemini Nano availability check:', response);
-    return response?.available || false;
+    if (result && !result.error) {
+      apiAvailability = result;
+      console.log('[Synapse AI] API availability:', apiAvailability);
+      return result;
+    }
+    
+    console.warn('[Synapse AI] Could not check API availability:', result?.error);
+    return { summarizer: false, writer: false, rewriter: false, prompt: false };
+    
   } catch (error) {
-    console.error('Error checking Gemini Nano availability:', error);
-    return false;
+    console.error('[Synapse AI] Error checking API availability:', error);
+    return { summarizer: false, writer: false, rewriter: false, prompt: false };
   }
-}
-
-/**
- * Initialize Gemini Nano session (no longer used, handled by content script)
- * @returns {Promise<Object|null>} AI session object or null
- */
-async function initializeGeminiNano() {
-  // Content script handles initialization
-  return null;
 }
 
 /**

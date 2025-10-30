@@ -9,10 +9,13 @@
     "idle",
     "notifications",
     "activeTab",
-    "offscreen"
+    "offscreen",
+    "identity"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://accounts.spotify.com/*",
+    "https://api.spotify.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -37,11 +40,24 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content-ai.js"],
-      "run_at": "document_idle"
+      "js": ["src/ai/content-multi-ai.js"],
+      "run_at": "document_start"
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; frame-src https://open.spotify.com; connect-src https://api.spotify.com https://accounts.spotify.com https://sdk.scdn.co"
+  },
+  "oauth2": {
+    "client_id": "407b27873f2448bda132e770716208db",
+    "scopes": [
+      "user-read-playback-state",
+      "user-modify-playback-state", 
+      "user-read-currently-playing",
+      "streaming",
+      "user-read-email",
+      "user-read-private",
+      "playlist-read-private",
+      "playlist-read-collaborative"
+    ]
   }
 }
